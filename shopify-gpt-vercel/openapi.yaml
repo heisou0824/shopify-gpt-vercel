@@ -1,0 +1,179 @@
+openapi: 3.1.0
+info:
+  title: Shopify Draft Product API
+  version: 1.0.0
+  description: 测试Shopify连接、读取产品并创建Draft草稿产品。
+servers:
+  - url: https://YOUR-VERCEL-DOMAIN.vercel.app
+security:
+  - bearerAuth: []
+paths:
+  /api/test-connection:
+    get:
+      operationId: testShopifyConnection
+      summary: 测试Shopify连接及授权范围
+      responses:
+        "200":
+          description: 连接结果
+  /api/products:
+    get:
+      operationId: getProducts
+      summary: 读取最新Shopify产品
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 25
+            default: 3
+      responses:
+        "200":
+          description: 产品列表
+    post:
+      operationId: createDraftProduct
+      summary: 创建Shopify草稿产品
+      description: 接口会强制使用Draft状态，不会正式发布。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProduct"
+      responses:
+        "201":
+          description: 创建成功
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    ProductOption:
+      type: object
+      required: [name, values]
+      properties:
+        name:
+          type: string
+          examples: [Color]
+        values:
+          type: array
+          items:
+            type: string
+          examples:
+            - [Blue, Gray]
+    OptionValue:
+      type: object
+      required: [optionName, name]
+      properties:
+        optionName:
+          type: string
+          examples: [Color]
+        name:
+          type: string
+          examples: [Blue]
+    Variant:
+      type: object
+      required: [price]
+      properties:
+        sku:
+          type: string
+        price:
+          type: number
+        compareAtPrice:
+          type: number
+        cost:
+          type: number
+        inventoryQuantity:
+          type: integer
+        weight:
+          type: number
+        weightUnit:
+          type: string
+          enum: [kg, g, lb, oz]
+        requiresShipping:
+          type: boolean
+          default: true
+        taxable:
+          type: boolean
+          default: true
+        inventoryPolicy:
+          type: string
+          enum: [DENY, CONTINUE]
+          default: DENY
+        optionValues:
+          type: array
+          items:
+            $ref: "#/components/schemas/OptionValue"
+    ProductImage:
+      type: object
+      required: [originalSource]
+      properties:
+        originalSource:
+          type: string
+          format: uri
+          description: Shopify服务器可访问的公开HTTPS图片地址。
+        alt:
+          type: string
+        filename:
+          type: string
+    CreateProduct:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        descriptionHtml:
+          type: string
+        vendor:
+          type: string
+        productType:
+          type: string
+        handle:
+          type: string
+        tags:
+          oneOf:
+            - type: array
+              items:
+                type: string
+            - type: string
+        seoTitle:
+          type: string
+        seoDescription:
+          type: string
+        collectionIds:
+          type: array
+          items:
+            type: string
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductOption"
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Variant"
+        sku:
+          type: string
+          description: 无多规格产品时使用。
+        price:
+          type: number
+          description: 无多规格产品时使用。
+        compareAtPrice:
+          type: number
+        cost:
+          type: number
+        inventoryQuantity:
+          type: integer
+        weight:
+          type: number
+        weightUnit:
+          type: string
+          enum: [kg, g, lb, oz]
+        requiresShipping:
+          type: boolean
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductImage"

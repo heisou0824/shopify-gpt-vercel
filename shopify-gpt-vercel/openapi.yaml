@@ -1,20 +1,29 @@
 openapi: 3.1.0
+
 info:
-  title: Shopify Draft Product API
-  version: 1.0.0
-  description: 测试Shopify连接、读取产品并创建Draft草稿产品。
+  title: Shopify Draft Product & Blog API
+  version: 1.1.0
+  description: >
+    连接Shopify Admin API，读取产品、创建Draft草稿产品、
+    读取博客文章并创建未发布的博客草稿文章。
+    产品和博客写入接口均采用安全限制，不会自动公开发布。
+
 servers:
-  - url: https://YOUR-VERCEL-DOMAIN.vercel.app
+  - url: https://shopify-gpt-vercel.vercel.app
+
 security:
   - bearerAuth: []
+
 paths:
+
   /api/test-connection:
     get:
       operationId: testShopifyConnection
       summary: 测试Shopify连接及授权范围
       responses:
         "200":
-          description: 连接结果
+          description: Shopify连接及权限检测结果
+
   /api/products:
     get:
       operationId: getProducts
@@ -31,10 +40,13 @@ paths:
       responses:
         "200":
           description: 产品列表
+
     post:
       operationId: createDraftProduct
       summary: 创建Shopify草稿产品
-      description: 接口会强制使用Draft状态，不会正式发布。
+      description: >
+        创建Shopify产品。服务器端强制使用Draft状态，
+        不会直接公开发布产品。
       requestBody:
         required: true
         content:
@@ -43,137 +55,354 @@ paths:
               $ref: "#/components/schemas/CreateProduct"
       responses:
         "201":
-          description: 创建成功
+          description: Draft产品创建成功
+        "400":
+          description: 参数错误或Shopify拒绝创建
+
+  /api/articles:
+    get:
+      operationId: getArticles
+      summary: 读取Shopify博客文章
+      description: >
+        读取Shopify现有博客文章，包括文章标题、handle、
+        所属博客分类、标签、图片、SEO元数据和发布状态。
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+
+        - name: query
+          in: query
+          required: false
+          description: 可选的Shopify文章搜索条件。
+          schema:
+            type: string
+
+      responses:
+        "200":
+          description: Shopify博客文章列表
+
+    post:
+      operationId: createDraftArticle
+      summary: 创建Shopify博客草稿文章
+      description: >
+        创建Shopify博客文章。
+        服务器端强制isPublished=false，
+        无论请求内容如何都不会直接公开发布。
+        可以通过blogTitle自动匹配Camping Guides等现有博客分类，
+        也可以直接传入blogId。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateArticle"
+
+      responses:
+        "201":
+          description: 博客草稿创建成功
+
+        "400":
+          description: 参数错误或Shopify拒绝创建
+
+        "404":
+          description: 未找到指定博客分类
+
+
 components:
+
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
+
   schemas:
+
     ProductOption:
       type: object
-      required: [name, values]
+      required:
+        - name
+        - values
       properties:
         name:
           type: string
-          examples: [Color]
+          examples:
+            - Color
+
         values:
           type: array
           items:
             type: string
           examples:
-            - [Blue, Gray]
+            - - Blue
+              - Gray
+
     OptionValue:
       type: object
-      required: [optionName, name]
+      required:
+        - optionName
+        - name
       properties:
         optionName:
           type: string
-          examples: [Color]
+          examples:
+            - Color
+
         name:
           type: string
-          examples: [Blue]
+          examples:
+            - Blue
+
     Variant:
       type: object
-      required: [price]
+      required:
+        - price
       properties:
+
         sku:
           type: string
+
         price:
           type: number
+
         compareAtPrice:
           type: number
+
         cost:
           type: number
+
         inventoryQuantity:
           type: integer
+
         weight:
           type: number
+
         weightUnit:
           type: string
-          enum: [kg, g, lb, oz]
+          enum:
+            - kg
+            - g
+            - lb
+            - oz
+
         requiresShipping:
           type: boolean
           default: true
+
         taxable:
           type: boolean
           default: true
+
         inventoryPolicy:
           type: string
-          enum: [DENY, CONTINUE]
+          enum:
+            - DENY
+            - CONTINUE
           default: DENY
+
         optionValues:
           type: array
           items:
             $ref: "#/components/schemas/OptionValue"
+
     ProductImage:
       type: object
-      required: [originalSource]
+      required:
+        - originalSource
       properties:
+
         originalSource:
           type: string
           format: uri
           description: Shopify服务器可访问的公开HTTPS图片地址。
+
         alt:
           type: string
+
         filename:
           type: string
+
     CreateProduct:
       type: object
-      required: [title]
+      required:
+        - title
       properties:
+
         title:
           type: string
+
         descriptionHtml:
           type: string
+
         vendor:
           type: string
+
         productType:
           type: string
+
         handle:
           type: string
+
         tags:
           oneOf:
             - type: array
               items:
                 type: string
             - type: string
+
         seoTitle:
           type: string
+
         seoDescription:
           type: string
+
         collectionIds:
           type: array
           items:
             type: string
+
         options:
           type: array
           items:
             $ref: "#/components/schemas/ProductOption"
+
         variants:
           type: array
           items:
             $ref: "#/components/schemas/Variant"
+
         sku:
           type: string
           description: 无多规格产品时使用。
+
         price:
           type: number
           description: 无多规格产品时使用。
+
         compareAtPrice:
           type: number
+
         cost:
           type: number
+
         inventoryQuantity:
           type: integer
+
         weight:
           type: number
+
         weightUnit:
           type: string
-          enum: [kg, g, lb, oz]
+          enum:
+            - kg
+            - g
+            - lb
+            - oz
+
         requiresShipping:
           type: boolean
+
         images:
           type: array
           items:
             $ref: "#/components/schemas/ProductImage"
+
+    ArticleImage:
+      type: object
+      required:
+        - url
+      properties:
+
+        url:
+          type: string
+          format: uri
+          description: >
+            Shopify服务器可以访问的公开HTTPS图片地址。
+            可以使用现有Shopify产品图片CDN地址。
+
+        altText:
+          type: string
+          description: >
+            博客图片ALT文本，用于图片可访问性和基础SEO。
+
+    CreateArticle:
+      type: object
+      required:
+        - title
+        - bodyHtml
+
+      properties:
+
+        blogId:
+          type: string
+          description: >
+            Shopify Blog的GraphQL GID。
+            blogId与blogTitle提供其中一个即可。
+
+        blogTitle:
+          type: string
+          description: >
+            Shopify现有博客分类名称或handle。
+            例如Camping Guides。
+            没有提供blogId时，服务器会自动查找对应Blog。
+
+          examples:
+            - Camping Guides
+
+        title:
+          type: string
+          description: 博客文章标题。
+
+        bodyHtml:
+          type: string
+          description: >
+            博客文章HTML正文。
+            可以包含H2/H3、产品锚文本、站内链接、
+            Shopify现有产品图片和其他HTML内容。
+
+        summaryHtml:
+          type: string
+          description: 可选的博客文章摘要HTML。
+
+        handle:
+          type: string
+          description: >
+            SEO友好的文章URL handle。
+            建议使用小写英文单词并以连字符分隔。
+
+        authorName:
+          type: string
+          default: RoveTrek
+          description: >
+            Shopify博客文章作者名称。
+            未填写时服务器默认使用RoveTrek。
+
+        tags:
+          oneOf:
+            - type: array
+              items:
+                type: string
+            - type: string
+          description: >
+            Shopify博客文章Tags。
+            可用于文章主题、产品类别及SEO内容组织。
+
+        image:
+          $ref: "#/components/schemas/ArticleImage"
+
+        seoTitle:
+          type: string
+          description: >
+            博客文章SEO Title。
+            服务器会写入global.title_tag metafield。
+
+        seoDescription:
+          type: string
+          description: >
+            博客文章Meta Description。
+            服务器会写入global.description_tag metafield。
